@@ -1,25 +1,38 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 
-const KEY = 'agricost_v1'
+export function useColtivazioni(userId) {
+  const [coltivazioni, setColtivazioni] = useState([])
+  const [loading,      setLoading]      = useState(true)
 
-export function useColtivazioni() {
-  const [coltivazioni, setColtivazioni] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(KEY) || '[]') }
-    catch { return [] }
-  })
+  const fetchAll = useCallback(async () => {
+    if (!userId) return
+    setLoading(true)
+    const { data } = await supabase
+      .from('coltivazioni')
+      .select('*')
+      .order('created_at', { ascending: true })
+    setColtivazioni(data || [])
+    setLoading(false)
+  }, [userId])
 
-  useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(coltivazioni))
-  }, [coltivazioni])
+  useEffect(() => { fetchAll() }, [fetchAll])
 
-  const aggiungi = (data) =>
-    setColtivazioni(prev => [...prev, data])
+  const aggiungi = async (data) => {
+    const row = { ...data, user_id: userId }
+    const { error } = await supabase.from('coltivazioni').insert(row)
+    if (!error) setColtivazioni(prev => [...prev, row])
+  }
 
-  const aggiorna = (id, data) =>
-    setColtivazioni(prev => prev.map(c => c.id === id ? { ...c, ...data, id } : c))
+  const aggiorna = async (id, data) => {
+    const { error } = await supabase.from('coltivazioni').update(data).eq('id', id)
+    if (!error) setColtivazioni(prev => prev.map(c => c.id === id ? { ...c, ...data } : c))
+  }
 
-  const elimina = (id) =>
-    setColtivazioni(prev => prev.filter(c => c.id !== id))
+  const elimina = async (id) => {
+    const { error } = await supabase.from('coltivazioni').delete().eq('id', id)
+    if (!error) setColtivazioni(prev => prev.filter(c => c.id !== id))
+  }
 
-  return { coltivazioni, aggiungi, aggiorna, elimina }
+  return { coltivazioni, loading, aggiungi, aggiorna, elimina }
 }

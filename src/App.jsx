@@ -1,28 +1,32 @@
 import { useState } from 'react'
+import { useAuth } from './hooks/useAuth'
+import { useColtivazioni } from './hooks/useColtivazioni'
 import Header from './components/Header'
 import Tabs from './components/Tabs'
 import Toast from './components/Toast'
+import Login from './components/Login'
 import FormColtivazione from './components/FormColtivazione'
 import CardColtivazione from './components/CardColtivazione'
 import Dashboard from './components/Dashboard'
 import PrezziMediTable from './components/PrezziMediTable'
-import { useColtivazioni } from './hooks/useColtivazioni'
 
 export default function App() {
-  const [tab, setTab]             = useState('aggiungi')
-  const [editing, setEditing]     = useState(null)
-  const [toast, setToast]         = useState(null)
+  const { user, loading: authLoading, loginWithGoogle, logout } = useAuth()
 
-  const { coltivazioni, aggiungi, aggiorna, elimina } = useColtivazioni()
+  const [tab,     setTab]     = useState('aggiungi')
+  const [editing, setEditing] = useState(null)
+  const [toast,   setToast]   = useState(null)
+
+  const { coltivazioni, loading: dbLoading, aggiungi, aggiorna, elimina } = useColtivazioni(user?.id)
 
   const showToast = (msg, type = 'ok') => setToast({ msg, type })
 
-  const handleSave = (data, isEdit) => {
+  const handleSave = async (data, isEdit) => {
     if (isEdit) {
-      aggiorna(data.id, data)
+      await aggiorna(data.id, data)
       showToast(`✅ "${data.nome}" aggiornata!`)
     } else {
-      aggiungi(data)
+      await aggiungi(data)
       showToast(`✅ "${data.nome}" aggiunta!`)
     }
     setEditing(null)
@@ -35,9 +39,9 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleElimina = (id, nome) => {
+  const handleElimina = async (id, nome) => {
     if (!window.confirm(`Eliminare la coltivazione "${nome}"?`)) return
-    elimina(id)
+    await elimina(id)
     showToast(`🗑️ "${nome}" eliminata.`, 'warn')
   }
 
@@ -46,9 +50,26 @@ export default function App() {
     setTab(newTab)
   }
 
+  // Schermata di caricamento iniziale (verifica sessione)
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-5xl mb-3 animate-pulse">🌾</div>
+          <p className="text-gray-400 text-sm">Caricamento…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Schermata di login se non autenticato
+  if (!user) {
+    return <Login onLogin={loginWithGoogle} />
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header user={user} onLogout={logout} />
       <Tabs active={tab} onChange={handleTabChange} count={coltivazioni.length} />
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
@@ -62,7 +83,12 @@ export default function App() {
         )}
 
         {tab === 'lista' && (
-          coltivazioni.length === 0 ? (
+          dbLoading ? (
+            <div className="text-center py-20 text-gray-400">
+              <div className="text-5xl mb-3 animate-pulse">🌱</div>
+              <p className="text-sm">Caricamento coltivazioni…</p>
+            </div>
+          ) : coltivazioni.length === 0 ? (
             <div className="text-center py-20 text-gray-400">
               <div className="text-6xl mb-4">🌱</div>
               <p className="text-lg font-semibold">Nessuna coltivazione ancora.</p>
