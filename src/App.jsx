@@ -11,7 +11,7 @@ import Dashboard from './components/Dashboard'
 import PrezziMediTable from './components/PrezziMediTable'
 
 export default function App() {
-  const { user, loading: authLoading, loginWithGoogle, logout } = useAuth()
+  const { user, loading: authLoading, loginWithGoogle, loginWithEmail, logout } = useAuth()
 
   const [tab,     setTab]     = useState('aggiungi')
   const [editing, setEditing] = useState(null)
@@ -64,7 +64,7 @@ export default function App() {
 
   // Schermata di login se non autenticato
   if (!user) {
-    return <Login onLogin={loginWithGoogle} />
+    return <Login onGoogle={loginWithGoogle} onEmail={loginWithEmail} />
   }
 
   return (
